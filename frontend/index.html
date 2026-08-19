@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OpenShift Message Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    background: #ffffff;
+    width: 100%;
+    max-width: 520px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  .header {
+    background: #142850;
+    color: white;
+    padding: 24px;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .header p {
+    font-size: 13px;
+    opacity: 0.75;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    margin-right: 6px;
+  }
+  .form-area {
+    padding: 20px 24px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+  }
+  #messageInput {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #messageInput:focus {
+    border-color: #2a5298;
+  }
+  #sendBtn {
+    background: #2a5298;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #sendBtn:hover {
+    background: #1e3c72;
+  }
+  #sendBtn:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+  }
+  .messages-area {
+    padding: 20px 24px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .messages-area h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    margin-bottom: 14px;
+  }
+  .message-card {
+    background: #f7f9fc;
+    border-left: 3px solid #2a5298;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    animation: fadeIn 0.3s ease;
+  }
+  .message-card p {
+    font-size: 14px;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    word-break: break-word;
+  }
+  .message-card span {
+    font-size: 11px;
+    color: #999;
+  }
+  .empty-state {
+    text-align: center;
+    color: #aaa;
+    font-size: 13px;
+    padding: 30px 0;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: #bbb;
+    padding: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>OpenShift Message Board</h1>
+    <p><span class="status-dot"></span>Full-stack app on Red Hat OpenShift</p>
+  </div>
+
+  <div class="form-area">
+    <input type="text" id="messageInput" placeholder="Type a message..." maxlength="200">
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <div class="messages-area">
+    <h3>Messages</h3>
+    <div id="messagesList">
+      <div class="empty-state">Loading messages...</div>
+    </div>
+  </div>
+
+  <div class="footer-note">Backend: Node.js + Express &nbsp;|&nbsp; DB: PostgreSQL &nbsp;|&nbsp; Deployed via S2I on OpenShift</div>
+</div>
+
+<script>
+  // ⚠️ Replace this with your actual backend Route URL if it changes
+  const API_BASE = "http://backend-route-anushka15-dev.apps.rm1.0a51.p1.openshiftapps.com";
+
+  const messagesList = document.getElementById("messagesList");
+  const messageInput = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+
+  function formatTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString();
+  }
+
+  async function loadMessages() {
+    try {
+      const res = await fetch(`${API_BASE}/api/messages`);
+      const data = await res.json();
+
+      if (data.length === 0) {
+        messagesList.innerHTML = `<div class="empty-state">No messages yet. Say hello!</div>`;
+        return;
+      }
+
+      const sorted = [...data].reverse();
+      messagesList.innerHTML = sorted.map(msg => `
+        <div class="message-card">
+          <p>${escapeHtml(msg.text)}</p>
+          <span>${formatTime(msg.created_at)}</span>
+        </div>
+      `).join("");
+    } catch (err) {
+      messagesList.innerHTML = `<div class="empty-state">⚠️ Could not load messages. Backend may be unreachable.</div>`;
+      console.error(err);
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  async function sendMessage() {
+    const text = messageInput.value.trim();
+    if (!text) return;
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Sending...";
+
+    try {
+      await fetch(`${API_BASE}/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      messageInput.value = "";
+      await loadMessages();
+    } catch (err) {
+      alert("Failed to send message. Please try again.");
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = "Send";
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  messageInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
+
+  loadMessages();
+</script>
+
+</body>
+</html>
