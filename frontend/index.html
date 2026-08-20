@@ -112,6 +112,19 @@
     font-size: 11px;
     color: #999;
   }
+  .delete-btn {
+    background: none;
+    border: none;
+    color: #c0392b;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .delete-btn:hover {
+    color: #922b21;
+  }
   .empty-state {
     text-align: center;
     color: #aaa;
@@ -154,7 +167,6 @@
 </div>
 
 <script>
-  // ⚠️ Replace this with your actual backend Route URL if it changes
   const API_BASE = "http://backend-route-anushka15-dev.apps.rm1.0a51.p1.openshiftapps.com";
 
   const messagesList = document.getElementById("messagesList");
@@ -164,6 +176,12 @@
   function formatTime(isoString) {
     const date = new Date(isoString);
     return date.toLocaleString();
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   async function loadMessages() {
@@ -179,8 +197,13 @@
       const sorted = [...data].reverse();
       messagesList.innerHTML = sorted.map(msg => `
         <div class="message-card">
-          <p>${escapeHtml(msg.text)}</p>
-          <span>${formatTime(msg.created_at)}</span>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <p>${escapeHtml(msg.text)}</p>
+              <span>${formatTime(msg.created_at)}</span>
+            </div>
+            <button class="delete-btn" onclick="deleteMessage(${msg.id})">&times;</button>
+          </div>
         </div>
       `).join("");
     } catch (err) {
@@ -189,10 +212,15 @@
     }
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
+  async function deleteMessage(id) {
+    if (!confirm("Delete this message?")) return;
+    try {
+      await fetch(`${API_BASE}/api/messages/${id}`, { method: "DELETE" });
+      await loadMessages();
+    } catch (err) {
+      alert("Failed to delete message.");
+      console.error(err);
+    }
   }
 
   async function sendMessage() {

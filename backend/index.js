@@ -42,6 +42,12 @@ app.post('/api/messages', async (req, res) => {
   res.json(result.rows[0]);
 });
 
+app.delete('/api/messages/:id', async (req, res) => {
+  const { id } = req.params;
+  await pool.query('DELETE FROM messages WHERE id = $1', [id]);
+  res.json({ success: true, message: `Message ${id} deleted` });
+});
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
