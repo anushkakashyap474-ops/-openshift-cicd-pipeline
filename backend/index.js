@@ -6,13 +6,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
-  host: 'postgres-service',
-  port: 5432,
-  user: 'appuser',
-  password: 'apppassword',
-  database: 'appdb',
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    })
+  : new Pool({
+      host: 'postgres-service',
+      port: 5432,
+      user: 'appuser',
+      password: 'apppassword',
+      database: 'appdb',
+    });
+
 async function setupDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
